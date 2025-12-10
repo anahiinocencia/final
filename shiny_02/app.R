@@ -141,13 +141,25 @@ ui <- dashboardPage(
       ),
       
       tabItem(tabName = "clientes",
-              box(title = "Listado de Clientes", width = 12,
-                  dataTableOutput("tablaClientes"))
-      ),
-      
+              fluidRow(
+                box(title = "Clientes por País", width = 12,
+                    plotOutput("grafClientesPais")
+                ),
+                box(title = "Listado de Clientes", width = 12,
+                    dataTableOutput("tablaClientes")
+                )
+              )
+      )
+      ,
       tabItem(tabName = "ventas",
-              box(title = "Órdenes", width = 12,
-                  dataTableOutput("tablaOrders"))
+              fluidRow(
+                box(title = "Monto Total por Orden", width = 12,
+                    plotOutput("grafVentasMonto")
+                ),
+                box(title = "Órdenes", width = 12,
+                    dataTableOutput("tablaOrders")
+                )
+              )
       )
     )
   )
@@ -271,6 +283,43 @@ server <- function(input, output) {
       )
     datatable(df)
   })
+  
+  output$grafClientesPais <- renderPlot({
+    df <- customers %>%
+      count(country, name = "total") %>%
+      arrange(desc(total))
+    
+    ggplot(df, aes(x = fct_reorder(country, total), y = total, fill = total)) +
+      geom_col() +
+      geom_text(aes(label = total), hjust = -0.1) +
+      scale_fill_gradient(low = "#FFD700", high = "#2e86c1") +
+      coord_flip() +
+      labs(title = "Número de Clientes por País",
+           x = "País",
+           y = "Total de Clientes") +
+      theme_minimal() +
+      theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  })
+  
+  output$grafVentasMonto <- renderPlot({
+    df <- order_details %>%
+      group_by(order_id) %>%
+      summarise(total_monto = sum(monto, na.rm = TRUE)) %>%
+      arrange(desc(total_monto)) %>%
+      slice_head(n = 20)   # top 20
+    
+    ggplot(df, aes(x = fct_reorder(as.factor(order_id), total_monto), y = total_monto, fill = total_monto)) +
+      geom_col() +
+      geom_text(aes(label = round(total_monto, 0)), hjust = -0.1) +
+      scale_fill_gradient(low = "#FFC0cB", high = "#40E0D0") +
+      coord_flip() +
+      labs(title = "Top 20 Órdenes por Monto Total",
+           x = "ID Orden",
+           y = "Monto Total") +
+      theme_minimal() +
+      theme(plot.title = element_text(face = "bold", hjust = 0.5))
+  })
+  
   
   output$tablaOrders <- renderDataTable({
     df <- orders %>%
